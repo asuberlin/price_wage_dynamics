@@ -13,14 +13,15 @@
 
 # commonly modified: duration, verbose, expectation, money mF_0, mH_0
 
-from expectations import original, differential, functional, Memory
+# allows for selection of expectation algorithm from expectations.py
+from expectations import original, differential, functional, memoryEx
 
 def Parameters():
     directory = '../results/',
     seed = None
     duration = 10
     verbose = True
-    expectation = original # which expectation function to use: original, differential, functional, memory
+    expectation = differential # which expectation function to use: one of those imported from expectations
 
     # run variable parameters
     money = False #[True, False]

@@ -19,8 +19,20 @@ class Firm:
         self.SSP_t = S_star
         self.SS_t = S_star
         self.LD_t = L_star
+
+        self.expectation = expectation # desired expectation function
+        
         self.memoryLength = 5 # for memory expectation
-        self.expectation = expectation
+        self.memory = self.initMemory() # for memory expectation
+
+    # for memory expectation
+    def initMemory(self):
+        memory = np.array([np.zeros(self.memoryLength),np.zeros(self.memoryLength)])
+        for i in range(int(self.memoryLength)):
+            memory[0][i] = max(0.001,self.SS_t*(1+np.random.normal(loc = 0.0, scale = 0.05))) 
+            memory[1][i] = (self.z_star / memory[0][i] ** self.zeta_t) 
+        print(memory)
+        return memory
         
     ### functions used in firm action calls
         
@@ -38,69 +50,14 @@ class Firm:
         res = minimize_scalar(f, bounds=(0, Lmax), method='bounded')
         return(res.x)
         
-#    # expectation functions
-#    
-#    # original ###############################################################
-#    if expectation == 'original':
-#        def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2): 
-#            f = lambda x: np.sqrt((np.log(p_tp1 / (x[0] / S_tp1 ** x[1])) ** 2 + \
-#                                   e1 * np.log(p_t / (x[0] / S_t ** x[1])) ** 2) / (1 + e1)) + \
-#                                e2 * np.sqrt(np.log(x[0] / z_t) ** 2 + np.log(x[0] / zeta_t) ** 2)
-#            res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
-#            return res.x[0], res.x[1]
-#        
-#    # differential ##########################################################
-    # if expectation == 'differential':
-#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2):
-#        f = lambda x: (p_tp1 - (x[0] / S_tp1 ** x[1])) ** 2 + e1 * (p_t - (x[0] / S_t ** x[1])) ** 2 + \
-#        e2 * ((x[0] - z_t) ** 2 + (x[1] - zeta_t) ** 2)
+    # original expectation function, now read in through expectations.py in parameter file and passed via simulation
+        
+#    def expectation(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2): 
+#        f = lambda x: np.sqrt((np.log(p_tp1 / (x[0] / S_tp1 ** x[1])) ** 2 + \
+#                               e1 * np.log(p_t / (x[0] / S_t ** x[1])) ** 2) / (1 + e1)) + \
+#                            e2 * np.sqrt(np.log(x[0] / z_t) ** 2 + np.log(x[0] / zeta_t) ** 2)
 #        res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
 #        return res.x[0], res.x[1]
-        
-    # functional ############################################################
-    # if expectation == 'functional':
-#    def calcZandZeta(self, S1, p1, S2, p2):
-#        zeta = abs(np.log(p2 / p1) / np.log(S1 / S2))
-#        z = p1 * S1 ** zeta
-#        return z, zeta
-#    
-#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2):
-#        z, zeta = self.calcZandZeta(S_t, p_t, S_tp1, p_tp1)
-#        z_tp1 = inertia * z_t + (1 - inertia) * z
-#        zeta_tp1 = inertia * zeta_t + (1 - inertia) * zeta
-#        return z_tp1, zeta_tp1
-        
-    # memory #################################################################
-    # need to set memory and memoryLength in init     
-    # if expectation == 'memory':
-#    def initMemory(self):
-#        memory = np.array([np.zeros(self.memoryLength),np.zeros(self.memoryLength)])
-#        for i in range(int(self.memoryLength)):
-#            memory[0][i] = max(0.001,self.SS_t*(1+np.random.normal(loc = 0.0, scale = 0.05))) 
-#            memory[1][i] = (self.z_star / memory[0][i] ** self.zeta_t) 
-#        print(memory)
-#        return memory
-#    
-#    def updateMemory(self, s_new, p_new):
-#        oldMemory = self.memory
-#        memLen = int(self.memoryLength)
-#        #print(oldMemory)
-#        newMemory = np.array([np.zeros(memLen),np.zeros(memLen)])
-#        for i in range(1, memLen):
-#            newMemory[0][memLen-i] = oldMemory[0][memLen-1-i]
-#            newMemory[1][memLen-i] = oldMemory[1][memLen-1-i]
-#        newMemory[0][0], newMemory[1][0] = s_new, p_new
-#        #print(newMemory)
-#        return newMemory
-#
-#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, e1, e2, inertia):
-#        self.memory = self.updateMemory(S_tp1,p_tp1)
-#        def phi(stuff, z, zeta): 
-#            return z/(stuff**zeta)
-#        fit = curve_fit(phi,self.memory[0],self.memory[1],[z_t,zeta_t])
-#        z, zeta = max(0.01,fit[0][0]), min(0.99,max(0.01,fit[0][1]))
-#        print(z,zeta)
-#        return z, zeta
 
     ### firm action calls
                                 
@@ -137,6 +94,5 @@ class Firm:
     # update stuff demand and labor supply function parameters
     def updateExpectations(self, verbose, money, SM_t, SM_tp1, Lmax, LS_t, LS_tp1):
         if verbose: print('Old p and new p are {:.4f} and {:.4f}, old S and new S are {:.4f} and {:.4f}'.format(self.p_t, self.p_tp1, SM_t, SM_tp1))
-        #self.z_tp1, self.zeta_tp1 =  self.expectationS(self.z_t, self.zeta_t, self.p_t, self.p_tp1, SM_t, SM_tp1, self.inertia, self.e1, self.e2)
-        self.z_tp1, self.zeta_tp1 =  self.expectation(self.z_t, self.zeta_t, self.p_t, self.p_tp1, SM_t, SM_tp1, self.inertia, self.e1, self.e2)
+        self.z_tp1, self.zeta_tp1 =  self.expectation(self.z_t, self.zeta_t, self.p_t, self.p_tp1, SM_t, SM_tp1, self.e1, self.e2, self.inertia, self.memory, self.memoryLength)
         if verbose: print('Firm: initial z and zeta: {:.4f} {:.4f}, and adjusted z and zeta: {:.4f} {:.4f}'.format(self.z_t, self.zeta_t, self.z_tp1, self.zeta_tp1))

@@ -11,6 +11,3 @@ firmResults, householdResults, marketResults = sim.Run()
 
 Plotting(sim.L_star, sim.S_star, sim.p_star, firmResults, householdResults)
 
-#firmResults.to_csv(runParameters['directory'] + 'Sim' + str(simulation) + 'Firm.csv')
-#householdResults.to_csv(runParameters['directory'] + 'Series' + str(series) + 'Household.csv')
-#marketResults.to_csv(runParameters['directory'] + 'Series' + str(series) + 'Market.csv')
