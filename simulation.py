@@ -1,158 +1,110 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 14 09:40:09 2019
-
-@author: JMA, GS
-"""
-
-import numpy as np
 import pandas as pd
 
 from firm import Firm
 from household import Household
 from market import Market
 
-#%%
-
-class Simulation:
-    def __init__(self, SimID, simulationParameters, firmParameters, householdParameters, marketParameters):
-        self.SimID = SimID
+class Simulation():
+    def __init__(self, runParameters, firmParameters, householdParameters):
         
+        self.runParameters = runParameters
         self.firmParameters = firmParameters
         self.householdParameters = householdParameters
-        self.marketParameters = marketParameters
         
-        self.numFirms = simulationParameters['numFirms']
-        self.numHouseholds = simulationParameters['numHouseholds']
-        self.duration = simulationParameters['duration']
-        self.money = simulationParameters['money']
-        self.numeraire = simulationParameters['numeraire']
-        self.directory = simulationParameters['directory']
-        self.seed = simulationParameters['seed']
+        self.duration = runParameters['duration']
+        self.money = runParameters['money']
+        self.verbose = runParameters['verbose']
+        self.expectation = runParameters['expectation']
         
-    #create agent
-    def createFirms(self):
-        self.firms = []
-        for i in range(self.numFirms):
-            self.firms.append(Firm(i, self.firmParameters, self.marketParameters))
-        return self.firms
-        
-    #create households
-    def createHouseholds(self):
-        self.households = []
-        for i in range(self.numHouseholds):
-            self.households.append(Household(i, self.householdParameters))
-        return self.households
+    def equilibrium(self, money, householdParameters, firmParameters):
+        Lmax = householdParameters['Lmax']
+        alpha = householdParameters['alpha']
+        beta = householdParameters['beta']
+        gamma = firmParameters['gamma']
+        zeta_0 = firmParameters['zeta_0']
+
+        L_star = beta / (alpha + beta) * Lmax
+        p_star = L_star ** (1 - gamma)
+        S_star = L_star ** gamma
+        z_star = p_star * S_star ** zeta_0
+        print('Equilibrium values are: p = {:.4f}, S = {:.4f}, L = {:.4f}, z = {:.4f}'.format(p_star, S_star, L_star, z_star))
     
-    def saveResults(self):
-        for f in self.firms:
-            self.firmResults = self.firmResults.append(f.__dict__, ignore_index = True)
-        for h in self.households: 
-            self.householdResults = self.householdResults.append(h.__dict__, ignore_index = True)
-        self.marketResults = self.marketResults.append(self.market.__dict__, ignore_index = True)
+        return(p_star, L_star, S_star, z_star)
+   
+    def saveSimResults(self):
+        self.firmSimResults = self.firmSimResults.append(self.firm.__dict__, ignore_index = True)
+        self.householdSimResults = self.householdSimResults.append(self.household.__dict__, ignore_index = True)
+        self.marketSimResults = self.marketSimResults.append(self.market.__dict__, ignore_index = True)
         
     def advanceAttributes(self):
-        self.market.JM_t, self.market.LM_t = self.market.JM_tp1, self.market.LM_tp1
+        self.market.SM_t, self.market.LM_t = self.market.SM_tp1, self.market.LM_tp1
             
-        for f in self.firms:
-            f.LD_t, f.JSP_t, f.JS_t = f.LD_tp1, f.JSP_tp1, f.JS_tp1 
-            f.p_t, f.w_t = f.p_tp1, f.w_tp1
-            if self.money: f.mF_t, f.x_t, f.xi_t = f.mF_tp1, f.x_tp1, f.xi_tp1
-            f.z_t, f.zeta_t = f.z_tp1, f.zeta_tp1
+        self.firm.LD_t, self.firm.SSP_t, self.firm.SS_t = self.firm.LD_tp1, self.firm.SSP_tp1, self.firm.SS_tp1 
+        self.firm.p_t = self.firm.p_tp1
+        self.firm.z_t, self.firm.zeta_t = self.firm.z_tp1, self.firm.zeta_tp1
+        if self.money: self.firm.mF_t = self.firm.mF_tp1
                 
-        for h in self.households:
-            h.LS_t, h.JD_t = h.LS_tp1, h.JD_tp1
-            if self.money: h.mH_t = h.mH_tp1
+        self.household.LS_t, self.household.SD_t = self.household.LS_tp1, self.household.SD_tp1
+        if self.money: self.household.mH_t = self.household.mH_tp1
     
-    def run(self):
-
-        self.firms = self.createFirms() 
-        self.households = self.createHouseholds()
-        self.market = Market(self.marketParameters)
+    def Run(self):
+        self.p_star, self.L_star,self.S_star, self.z_star = self.equilibrium(self.money, self.householdParameters, self.firmParameters)
         
-        self.firmResults = pd.DataFrame()
-        self.householdResults = pd.DataFrame()
-        self.marketResults = pd.DataFrame()
+        self.firm = Firm(self.money, self.firmParameters, self.p_star, self.S_star, self.L_star, self.z_star, self.expectation) 
+        self.household = Household(self.householdParameters, self.p_star, self.S_star, self.z_star, self.firm.zeta_0)
+        self.market = Market(self.S_star, self.L_star)
+        
+        self.firmSimResults = pd.DataFrame()
+        self.householdSimResults = pd.DataFrame()
+        self.marketSimResults = pd.DataFrame()
 
         for t in range(self.duration):
             
+            if self.verbose: print('\nstep ', str(t + 1))
             #add time step as instance attribute
-            self.market.step = t
-            for f in self.firms: f.step = t
-            for h in self.households: h.step = t
-    
-            #calculate mean Lmax for firm production estimates
-            self.meanLmax = np.mean([h.Lmax for h in self.households])
+            self.market.step = t + 1
+            self.firm.step = t + 1
+            self.household.step = t + 1
             
-            #firms plan production
-            for f in self.firms:
-                f.decideProduction(self.money, self.numeraire, self.market.JM_t, self.meanLmax)
-            
-            #aggregate and average firm production plans
-            self.AggLD = sum([f.LD_tp1 for f in self.firms])
-            self.AggJSP = sum([f.JSP_tp1 for f in self.firms])
-            self.meanWage = np.mean([f.w_tp1 for f in self.firms])
-            self.meanPrice = np.mean([f.p_tp1 for f in self.firms])
-            
+            #firms plan sugar production
+            self.firm.decideProduction(self.verbose, self.money, self.market.SM_t, self.household.Lmax)
+
             #households decide labor supply
-            for h in self.households:
-                h.decideLabor(self.numeraire, self.meanWage)
-            
-            #aggregate household labor supply
-            self.AggLS = sum([h.LS_tp1 for h in self.households])
+            self.household.decideLabor(self.verbose)
             
             #market decides labor supply
-            self.market.laborTransaction(self.AggLD, self.AggLS)
+            self.market.laborTransaction(self.verbose, self.firm.LD_tp1, self.household.LS_tp1)
             
-            #firms produce
-            for f in self.firms:
-                f.produce(self.market.LM_tp1)
+            #firms produce sugar
+            self.firm.produce(self.verbose, self.market.LM_tp1)
             
-            #aggregate firm production
-            self.AggJS = sum([f.JS_tp1 for f in self.firms])
+            #households decide sugar consumption
+            self.household.decideConsumption(self.verbose, self.money, self.market.LM_tp1, self.firm.p_tp1)
             
-            #households decide consumption
-            for h in self.households:
-                h.decideConsumption(self.money, self.numeraire, self.market.LM_tp1, self.meanPrice, self.meanWage)
-            
-            #aggregate household consumption
-            self.AggJD = sum([h.JD_tp1 for f in self.households])
-            
-            #market decides demand for stuff
-            self.market.stuffTransaction(self.AggJS, self.AggJD)
+            #market decides demand for sugar
+            self.market.stuffTransaction(self.verbose, self.firm.SS_tp1, self.household.SD_tp1)
         
             #update firm ledgers
-            if self.money: 
-                for f in self.firms:
-                    f.updateLedger(self.AggJD / self.numFirms, self.market.LM_tp1 / self.numFirms) 
-                    ##Wrong, needs to be heterogenously divided between firms.
+            if self.money: self.firm.updateLedger(self.verbose, self.market.SM_tp1, self.market.LM_tp1) 
         
             #no labor curve updating first round
             if t == 0: self.market.LM_t = self.market.LM_tp1 
             
-            #update stuff demand function parameters
-            for f in self.firms:
-                f.updateDemandFunction(self.market.LM_t, self.market.LM_tp1)
-
-            #update labor supply function parameters
-            if self.money: 
-                for f in self.firms:
-                    f.updateLaborFunction(self.meanLmax, self.market.LM_t, self.market.LM_tp1)
+            #update sugar demand an labor supply function parameters
+            self.firm.updateExpectations(self.verbose, self.money, self.market.SM_t, self.market.SM_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
             
             #update household ledgers
             if self.money: 
-                for h in self.households:
-                    h.updateLedger(self.meanPrice, self.market.JM_tp1 / self.numHouseholds, self.meanWage, 
-                                   self.market.LM_tp1 / self.numHouseholds)
-                    ##Wrong, needs to be heterogenously divided between households.
+                self.household.updateLedger(self.verbose, self.firm.p_tp1, self.market.SM_tp1, self.market.LM_tp1)
                     
             #save step results
-            self.saveResults()
+            self.saveSimResults()
             
             # update timed variables
             self.advanceAttributes()
                     
-            #print('step', t, 'complete')
+            #print('step', t + 1, 'complete')
+        
+        print('Final simulation values are: p = {:.4f}, S = {:.4f}, L = {:.4f}'.format(self.firm.p_tp1, self.market.SM_t, self.market.LM_t))
             
-        return self.firmResults, self.householdResults, self.marketResults
+        return self.firmSimResults, self.householdSimResults, self.marketSimResults

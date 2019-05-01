@@ -1,122 +1,142 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 14 09:36:36 2019
-
-@author: JMA, GS
-"""
-
+from scipy.optimize import minimize, minimize_scalar, basinhopping, curve_fit
 import numpy as np
-from scipy.optimize import minimize, minimize_scalar
 
 class Firm:
-    def __init__(self, firmID, firmParameters, marketParameters):  #** firm parameters in main
-        self.firmID = firmID
-        self.p_t = firmParameters['p_0']
-        self.w_t = firmParameters['w_0']
+    def __init__(self, money, firmParameters, p_star, S_star, L_star, z_star, expectation):
         self.gamma = firmParameters['gamma']
-        self.z_t = firmParameters['z_0']
-        self.zeta_t = firmParameters['zeta_0']
+        self.p_t = p_star
+        self.zeta_0 = firmParameters['zeta_0']
+        self.zeta_t = self.zeta_0
+        self.error = firmParameters['error']
+        self.z_star = z_star
+        self.z_t = z_star * (1 + self.error)
+        self.inertia = firmParameters['inertia']
         self.e1 = firmParameters['e1']
         self.e2 = firmParameters['e2']
-        self.x_t = firmParameters['x_0']
-        self.xi_t = firmParameters['xi_0']
-        self.mF_t = firmParameters['mF_0']
-        self.JSP_t = marketParameters['JM_0']
-        self.JS_t = marketParameters['JM_0']
-        self.LD_t = marketParameters['LM_0']
-        #for multiple agents many of these parameters will become random assignments.
+        self.mF_t = L_star if money else firmParameters['mF_0']
+        self.stock = 0
+        self.expiration = firmParameters['expiration']
+        self.SSP_t = S_star
+        self.SS_t = S_star
+        self.LD_t = L_star
+        self.memoryLength = 5 # for memory expectation
+        self.expectation = expectation
         
-    ###functions used in firm action calls
-
-    def phi(self, L, z, zeta, gamma):   # expected stuff demand function **
-        return z / (L ** (gamma * zeta))
-
-    def psi(self, L, x, xi, Lmax):      # expected labor supply function
-        return (x / (Lmax - L)) ** (1 / xi)
+    ### functions used in firm action calls
         
-    def optimizeL1(self, z, zeta, gamma, Lmax): #firm decides production ideal versions 1 & 2
-        def f(L):
-            return abs(z/L * L **(gamma*(1-zeta)) - 1)
+    # firm production function
+    def rho(self, L, gamma):
+        return L ** gamma
+
+    # sugar demand function
+    def phi(self, L, z, zeta, gamma): 
+        return z / self.rho(L, gamma) ** zeta
+        
+    # used in firm decides production 
+    def optimizeL(self, z, zeta, gamma, Lmax): #firm decides production ideal versions 1 & 2
+        f = lambda L: abs(self.rho(L, gamma) * self.phi(L, z, zeta, gamma) - L)
         res = minimize_scalar(f, bounds=(0, Lmax), method='bounded')
         return(res.x)
+        
+#    # expectation functions
+#    
+#    # original ###############################################################
+#    if expectation == 'original':
+#        def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2): 
+#            f = lambda x: np.sqrt((np.log(p_tp1 / (x[0] / S_tp1 ** x[1])) ** 2 + \
+#                                   e1 * np.log(p_t / (x[0] / S_t ** x[1])) ** 2) / (1 + e1)) + \
+#                                e2 * np.sqrt(np.log(x[0] / z_t) ** 2 + np.log(x[0] / zeta_t) ** 2)
+#            res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
+#            return res.x[0], res.x[1]
+#        
+#    # differential ##########################################################
+    # if expectation == 'differential':
+#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2):
+#        f = lambda x: (p_tp1 - (x[0] / S_tp1 ** x[1])) ** 2 + e1 * (p_t - (x[0] / S_t ** x[1])) ** 2 + \
+#        e2 * ((x[0] - z_t) ** 2 + (x[1] - zeta_t) ** 2)
+#        res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
+#        return res.x[0], res.x[1]
+        
+    # functional ############################################################
+    # if expectation == 'functional':
+#    def calcZandZeta(self, S1, p1, S2, p2):
+#        zeta = abs(np.log(p2 / p1) / np.log(S1 / S2))
+#        z = p1 * S1 ** zeta
+#        return z, zeta
+#    
+#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2):
+#        z, zeta = self.calcZandZeta(S_t, p_t, S_tp1, p_tp1)
+#        z_tp1 = inertia * z_t + (1 - inertia) * z
+#        zeta_tp1 = inertia * zeta_t + (1 - inertia) * zeta
+#        return z_tp1, zeta_tp1
+        
+    # memory #################################################################
+    # need to set memory and memoryLength in init     
+    # if expectation == 'memory':
+#    def initMemory(self):
+#        memory = np.array([np.zeros(self.memoryLength),np.zeros(self.memoryLength)])
+#        for i in range(int(self.memoryLength)):
+#            memory[0][i] = max(0.001,self.SS_t*(1+np.random.normal(loc = 0.0, scale = 0.05))) 
+#            memory[1][i] = (self.z_star / memory[0][i] ** self.zeta_t) 
+#        print(memory)
+#        return memory
+#    
+#    def updateMemory(self, s_new, p_new):
+#        oldMemory = self.memory
+#        memLen = int(self.memoryLength)
+#        #print(oldMemory)
+#        newMemory = np.array([np.zeros(memLen),np.zeros(memLen)])
+#        for i in range(1, memLen):
+#            newMemory[0][memLen-i] = oldMemory[0][memLen-1-i]
+#            newMemory[1][memLen-i] = oldMemory[1][memLen-1-i]
+#        newMemory[0][0], newMemory[1][0] = s_new, p_new
+#        #print(newMemory)
+#        return newMemory
+#
+#    def expectationS(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, e1, e2, inertia):
+#        self.memory = self.updateMemory(S_tp1,p_tp1)
+#        def phi(stuff, z, zeta): 
+#            return z/(stuff**zeta)
+#        fit = curve_fit(phi,self.memory[0],self.memory[1],[z_t,zeta_t])
+#        z, zeta = max(0.01,fit[0][0]), min(0.99,max(0.01,fit[0][1]))
+#        print(z,zeta)
+#        return z, zeta
 
-    def optimizeL2(self, z, zeta, gamma, Lmax, x, xi): #firm decides production ideal version 3
-        f = lambda L: -1 * abs(L ** gamma * (z /  L ** (gamma * zeta)) - (x / (Lmax - L)) ** (1 / xi) * L)
-        res = minimize_scalar(f, bounds=(0, Lmax), method='bounded')
-        return(res.x)
-    
-    # change optimizeL1 and optimizeL2 to maximize for more than one firm?
-
-    def optimizeL3(self, x, xi, Lmax, m): #minimum alternative for firm decides production version 3 
-        f = lambda L: abs(self.psi(L, x, xi, Lmax) - (m / L))
-        res = minimize_scalar(f, bounds=(0, Lmax), method='bounded')
-        return(res.x)
-    
-#     def expectationJ(self, z_t, zeta_t, p_t, p_tp1, gamma, L_t, L_tp1, e1, e2): 
-#         f = lambda x: sqrt((np.log(p_tp1 / (x[1] / (L_tp1 ** (gamma * x[0])))) ** 2 + \
-#                              e1 * np.log(p_t / (x[1] / (L_t ** (gamma * x[0]))) ** 2) / (1 + e1)) + \
-#                             e2 * sqrt(np.log(x[0] / zeta_t) ** 2 + np.log(x[1] / z_t) ** 2))
-#         res = minimize(f, x0 = [zeta_t, z_t], bounds = ((0, 1), (0, None)))
-#         return res.x[0], res.x[1]
-
-#     def expectationL(self, x_t, xi_t, w_t, w_tp1, Lmax, L_t, L_tp1, e1, e2): 
-#         f = lambda x: sqrt((np.log(w_tp1 / ((x[1] / (Lmax - L_tp1))) ** (1 / x[0])) ** 2 + \
-#                              e1 * np.log(w_t / ((x[1] / (Lmax - L_t))) ** (1 / x[0])) ** 2) / (1 + e1) + \
-#                             e2 * sqrt(np.log(x[0] / xi_t) ** 2 + np.log(x[1] / x_t) ** 2 ))
-#         res = minimize(f, x0 = [xi_t, x_t], bounds = ((0, None), (0, None)))
-#         return res.x[0], res.x[1]
-    
-    def expectationJ(self, z_t, zeta_t, p_t, p_tp1, J_t, J_tp1, e1, e2):
-        def f(zzeta): 
-            return np.sqrt( ((np.log(p_tp1/zzeta[0]*J_tp1**zzeta[1]))**2 + e1*(np.log(p_t/zzeta[0]*J_t**zzeta[1]))**2)/(1+e1) )  + \
-                e2 * np.sqrt( (np.log(zzeta[0]/z_t))**2 + (np.log(zzeta[1]/zeta_t))**2 )
-        res = minimize(f, x0 = [z_t, zeta_t], method='L-BFGS-B', bounds = ((0.01, None), (0.0, 1.0)), options = {'ftol': 0.0005})
-        return res.x[0], res.x[1]
-    
-#    def expectationL(self, x_t, xi_t, w_t, w_tp1, Lmax, L_t, L_tp1, e1, e2):
-#        f = lambda x: (w_tp1 - (x[0] / (Lmax - L_tp1) ** (1 / x[1]))) ** 2 + \
-#                    e1 * (w_t - (x[0] / (Lmax - L_t) ** (1 / x[1]))) ** 2 + \
-#                    e2 * ((x[0] - x_t) ** 2 + np.log(x[1] - xi_t) ** 2) 
-#        res = minimize(f, x0 = [x_t, xi_t], bounds = ((0, None), (0, None)))
-#        return res.x[0], res.x[1]   
-    
     ### firm action calls
                                 
     # given expected demand and expected labor supply, plan production of stuff. 
-    def decideProduction(self, money, numeraire, JM_t, Lmax):  
-        if not money:                       
-            #self.LD_tp1 = min(self.optimizeL1(self.z_t, self.zeta_t, self.gamma, self.p_t * JM_t), self.p_t * JM_t)
-            self.LD_tp1 = min(self.optimizeL1(self.z_t, self.zeta_t, self.gamma, Lmax), self.p_t * JM_t)
+    def decideProduction(self, verbose, money, SM_t, Lmax):  
+        if not money: 
+            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax)
+            budget = self.p_t * SM_t
+            self.LD_tp1 = min(optimum, budget)
             self.w_tp1 = 1
+            if verbose: print('Firm: optimum labor is {:.4f}, affordable is {:.4f}, so planned labor is {:.4f}.'.format(optimum, budget, self.LD_tp1))
                                 
-        if money & (numeraire == 'wage'):
-            self.LD_tp1 = min(self.optimizeL1(self.z_t, self.zeta_t, self.gamma, Lmax), self.mF_t)
+        if money:
+            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax)
+            budget = self.mF_t
+            self.LD_tp1 = min(optimum, budget)
             self.w_tp1 = 1
-                                
-        if money & (numeraire == 'money'):
-            self.LD_tp1 = min(self.optimizeL2(self.z_t, self.zeta_t, self.gamma, self.x_t, self.xi_t, Lmax), 
-                              self.optimizeL3(self.x_t, self.xi_t, Lmax, self.mF_t))
-            self.w_tp1 = self.psi(self.LD_tp1, self.x_t, self.xi_t, Lmax)
-                         
-        self.JSP_tp1 = self.LD_tp1 ** self.gamma
-                         
+            if verbose: print('Firm: optimum labor is {:.4f}, affordable is {:.4f}, so planned labor is {:.4f}.'.format(optimum, budget, self.LD_tp1))
+                                                         
+        self.SSP_tp1 = self.rho(self.LD_tp1, self.gamma)                  
         self.p_tp1 = self.phi(self.LD_tp1, self.z_t, self.zeta_t, self.gamma)
-
+        if verbose: print('Firm: planned production is {:.4f} and price is {:.4f}'.format(self.SSP_tp1, self.p_tp1))
+        
     # given market labor result, produce stuff                     
-    def produce(self, LM_tp1):
-        self.JS_tp1 = LM_tp1 ** self.gamma
+    def produce(self, verbose, LM_tp1):
+        self.SS_tp1 = self.rho(LM_tp1, self.gamma)
+        if verbose: print('Firm: Firm produces {:.4f}'.format(self.SS_tp1))
                          
     # update monetary holdings
-    def updateLedger(self, JM_tp1, LM_tp1):
-        self.mF_tp1 = self.mF_t + self.p_tp1 * JM_tp1 - self.w_tp1 * LM_tp1
+    def updateLedger(self, verbose, SM_tp1, LM_tp1):
+        self.mF_tp1 = self.mF_t + self.p_tp1 * SM_tp1 - LM_tp1
+        if verbose: print('Firm: initial ledger balance {:.4f} and new ledger balance is {:.4f}'.format(self.mF_t, self.mF_tp1))
                          
     # update stuff demand and labor supply function parameters
-    def updateDemandFunction(self, JD_t, JD_tp1):
-        #print(self.z_t, self.zeta_t)
-        self.z_tp1, self.zeta_tp1 = \
-            self.expectationJ(self.z_t, self.zeta_t, self.p_t, self.p_tp1, JD_t, JD_tp1, self.e1, self.e2)
-    
-    def updateLaborFunction(self, Lmax, LS_t, LS_tp1):                   
-        self.x_tp1, self.xi_tp1 =  \
-        self.expectationL(self.x_t, self.xi_t, self.w_t, self.w_tp1, Lmax, LS_t, LS_tp1, self.e1, self.e2)
+    def updateExpectations(self, verbose, money, SM_t, SM_tp1, Lmax, LS_t, LS_tp1):
+        if verbose: print('Old p and new p are {:.4f} and {:.4f}, old S and new S are {:.4f} and {:.4f}'.format(self.p_t, self.p_tp1, SM_t, SM_tp1))
+        #self.z_tp1, self.zeta_tp1 =  self.expectationS(self.z_t, self.zeta_t, self.p_t, self.p_tp1, SM_t, SM_tp1, self.inertia, self.e1, self.e2)
+        self.z_tp1, self.zeta_tp1 =  self.expectation(self.z_t, self.zeta_t, self.p_t, self.p_tp1, SM_t, SM_tp1, self.inertia, self.e1, self.e2)
+        if verbose: print('Firm: initial z and zeta: {:.4f} {:.4f}, and adjusted z and zeta: {:.4f} {:.4f}'.format(self.z_t, self.zeta_t, self.z_tp1, self.zeta_tp1))
