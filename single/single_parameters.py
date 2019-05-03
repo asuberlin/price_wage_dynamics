@@ -21,8 +21,8 @@ def Parameters():
     seed = None
     duration = 50
     verbose = True
-    expectation = functional # which expectation function to use: one of those imported from expectations
-    demandKnown = True     #determines whether the firm knows the actual stuff demand
+    expectation = differential # which expectation function to use: one of those imported from expectations
+    demandKnown = True         # determines whether the firm knows the actual stuff demand
 
     # run variable parameters
     money = True #[True, False]
