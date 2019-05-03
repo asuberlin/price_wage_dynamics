@@ -31,7 +31,7 @@ class Firm:
         for i in range(int(self.memoryLength)):
             memory[0][i] = max(0.001,self.SS_t*(1+np.random.normal(loc = 0.0, scale = 0.05))) 
             memory[1][i] = (self.z_star / memory[0][i] ** self.zeta_t) 
-        print(memory)
+        #print(memory)
         return memory
         
     ### functions used in firm action calls

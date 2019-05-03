@@ -1,7 +1,7 @@
 import pandas as pd
 
 from firm import Firm
-from household import Household
+from household2 import Household
 from market import Market
 
 class Simulation():
@@ -15,6 +15,7 @@ class Simulation():
         self.money = runParameters['money']
         self.verbose = runParameters['verbose']
         self.expectation = runParameters['expectation']
+        self.demandKnown = runParameters['demandKnown']
         
     def equilibrium(self, money, householdParameters, firmParameters):
         Lmax = householdParameters['Lmax']
@@ -91,8 +92,11 @@ class Simulation():
             if t == 0: self.market.LM_t = self.market.LM_tp1 
             
             #update sugar demand an labor supply function parameters
-            self.firm.updateExpectations(self.verbose, self.money, self.market.SM_t, self.market.SM_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
-            
+            if self.demandKnown:
+                self.firm.updateExpectations(self.verbose, self.money, self.household.SD_t, self.household.SD_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
+            else:
+                self.firm.updateExpectations(self.verbose, self.money, self.market.SM_t, self.market.SM_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
+                        
             #update household ledgers
             if self.money: 
                 self.household.updateLedger(self.verbose, self.firm.p_tp1, self.market.SM_tp1, self.market.LM_tp1)

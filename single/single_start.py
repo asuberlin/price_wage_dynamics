@@ -1,6 +1,6 @@
 from single_parameters import Parameters
 from simulation import Simulation
-from plotting import Plotting
+from plotting import plotting, plotZandZeta
 
 #construct parameters dictionaries
 runParameters, firmParameters, householdParameters = Parameters()
@@ -9,5 +9,6 @@ runParameters, firmParameters, householdParameters = Parameters()
 sim = Simulation(runParameters, firmParameters, householdParameters)
 firmResults, householdResults, marketResults = sim.Run()
 
-Plotting(sim.L_star, sim.S_star, sim.p_star, firmResults, householdResults)
+plotting(sim.L_star, sim.S_star, sim.p_star, firmResults, householdResults)
+plotZandZeta(firmResults)
 
