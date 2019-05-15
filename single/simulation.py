@@ -13,8 +13,10 @@ class Simulation():
         
         self.duration = runParameters['duration']
         self.money = runParameters['money']
+        self.stock = runParameters['stock']
         self.verbose = runParameters['verbose']
         self.expectation = runParameters['expectation']
+        self.demandKnown = runParameters['demandKnown']
         
     def equilibrium(self, money, householdParameters, firmParameters):
         Lmax = householdParameters['Lmax']
@@ -42,6 +44,7 @@ class Simulation():
         self.firm.LD_t, self.firm.SSP_t, self.firm.SS_t = self.firm.LD_tp1, self.firm.SSP_tp1, self.firm.SS_tp1 
         self.firm.p_t = self.firm.p_tp1
         self.firm.z_t, self.firm.zeta_t = self.firm.z_tp1, self.firm.zeta_tp1
+        if self.stock: self.firm.stock_t = self.firm.stock_tp1
         if self.money: self.firm.mF_t = self.firm.mF_tp1
                 
         self.household.LS_t, self.household.SD_t = self.household.LS_tp1, self.household.SD_tp1
@@ -83,6 +86,9 @@ class Simulation():
             
             #market decides demand for sugar
             self.market.stuffTransaction(self.verbose, self.firm.SS_tp1, self.household.SD_tp1)
+            
+            #update firm stock
+            if self.stock: self.firm.updateStock(self.verbose, self.market.SM_tp1)
         
             #update firm ledgers
             if self.money: self.firm.updateLedger(self.verbose, self.market.SM_tp1, self.market.LM_tp1) 
@@ -91,8 +97,11 @@ class Simulation():
             if t == 0: self.market.LM_t = self.market.LM_tp1 
             
             #update sugar demand an labor supply function parameters
-            self.firm.updateExpectations(self.verbose, self.money, self.market.SM_t, self.market.SM_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
-            
+            if self.demandKnown:
+                self.firm.updateExpectations(self.verbose, self.money, self.household.SD_t, self.household.SD_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
+            else:
+                self.firm.updateExpectations(self.verbose, self.money, self.market.SM_t, self.market.SM_tp1, self.market.LM_tp1, self.market.LM_t, self.market.LM_tp1)
+                        
             #update household ledgers
             if self.money: 
                 self.household.updateLedger(self.verbose, self.firm.p_tp1, self.market.SM_tp1, self.market.LM_tp1)

@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-
 def Plotting(L_star, S_star, p_star, firmResults, householdResults):
     plt.clf()
     plt.figure(1, figsize=(15,3))
@@ -11,7 +9,7 @@ def Plotting(L_star, S_star, p_star, firmResults, householdResults):
     plt.axhline(y = p_star, color = 'green', ls = ':')
     plt.title('price')
     ax.set_ylim([0, 10])
-    
+
     #sugar supply, demand and equilibrium
     plt.subplot(132)
     ax = plt.gca()
@@ -20,7 +18,7 @@ def Plotting(L_star, S_star, p_star, firmResults, householdResults):
     plt.axhline(y = S_star, color = 'green', ls = ':')
     plt.title('sugar supply and demand')
     ax.set_ylim([0, 100])
-    
+
     #labor supply, demand and equilibrium
     plt.subplot(133)
     ax = plt.gca()
@@ -29,5 +27,7 @@ def Plotting(L_star, S_star, p_star, firmResults, householdResults):
     plt.axhline(y = L_star, color = 'green', ls = ':')
     plt.title('labor supply and demand')
     ax.set_ylim([0, 400])
+    
+    plt.show()
 
     #plt.savefig('../plots/Fig7aip5.pdf')

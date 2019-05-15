@@ -6,15 +6,16 @@ class Firm:
         self.gamma = firmParameters['gamma']
         self.p_t = p_star
         self.zeta_0 = firmParameters['zeta_0']
-        self.zeta_t = self.zeta_0
         self.error = firmParameters['error']
         self.z_star = z_star
         self.z_t = z_star * (1 + self.error)
+        self.zeta_t = self.zeta_0 * (1 + self.error)
         self.inertia = firmParameters['inertia']
         self.e1 = firmParameters['e1']
         self.e2 = firmParameters['e2']
         self.mF_t = L_star if money else firmParameters['mF_0']
-        self.stock = 0
+        self.stock_t = 0
+        self.stock_tp1 = self.stock_t
         self.expiration = firmParameters['expiration']
         self.SSP_t = S_star
         self.SS_t = S_star
@@ -45,33 +46,24 @@ class Firm:
         return z / self.rho(L, gamma) ** zeta
         
     # used in firm decides production 
-    def optimizeL(self, z, zeta, gamma, Lmax): #firm decides production ideal versions 1 & 2
-        f = lambda L: abs(self.rho(L, gamma) * self.phi(L, z, zeta, gamma) - L)
+    def optimizeL(self, z, zeta, gamma, Lmax, stock): #firm decides labor for optimal production
+        f = lambda L: (self.rho(L, gamma) + stock) * self.phi(L, z, zeta, gamma) - L
         res = minimize_scalar(f, bounds=(0, Lmax), method='bounded')
         return(res.x)
-        
-    # original expectation function, now read in through expectations.py in parameter file and passed via simulation
-        
-#    def expectation(self, z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, inertia, e1, e2): 
-#        f = lambda x: np.sqrt((np.log(p_tp1 / (x[0] / S_tp1 ** x[1])) ** 2 + \
-#                               e1 * np.log(p_t / (x[0] / S_t ** x[1])) ** 2) / (1 + e1)) + \
-#                            e2 * np.sqrt(np.log(x[0] / z_t) ** 2 + np.log(x[0] / zeta_t) ** 2)
-#        res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
-#        return res.x[0], res.x[1]
 
     ### firm action calls
                                 
     # given expected demand and expected labor supply, plan production of stuff. 
     def decideProduction(self, verbose, money, SM_t, Lmax):  
         if not money: 
-            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax)
+            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax, self.stock_t)
             budget = self.p_t * SM_t
             self.LD_tp1 = min(optimum, budget)
             self.w_tp1 = 1
             if verbose: print('Firm: optimum labor is {:.4f}, affordable is {:.4f}, so planned labor is {:.4f}.'.format(optimum, budget, self.LD_tp1))
                                 
         if money:
-            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax)
+            optimum = self.optimizeL(self.z_t, self.zeta_t, self.gamma, Lmax, self.stock_t)
             budget = self.mF_t
             self.LD_tp1 = min(optimum, budget)
             self.w_tp1 = 1
@@ -83,8 +75,15 @@ class Firm:
         
     # given market labor result, produce stuff                     
     def produce(self, verbose, LM_tp1):
-        self.SS_tp1 = self.rho(LM_tp1, self.gamma)
+        self.SS_tp1 = self.rho(LM_tp1, self.gamma) + self.stock_t
         if verbose: print('Firm: Firm produces {:.4f}'.format(self.SS_tp1))
+        
+    # update stock
+    def updateStock(self, verbose, SM_tp1):
+        deltaS = self.SS_tp1 - SM_tp1
+        if deltaS > 0: self.stock_tp1 = deltaS * (1 - self.expiration)
+        if verbose: print('Firm: delta supply is {:.4f}, expiration is {:.4f}, \
+                          initial stock is {:.4f} and new stock is {:.4f}'.format(deltaS, self.expiration, self.stock_t, self.stock_tp1))
                          
     # update monetary holdings
     def updateLedger(self, verbose, SM_tp1, LM_tp1):
