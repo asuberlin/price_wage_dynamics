@@ -29,14 +29,14 @@ def Parameters():
 
     # firm variable parameters
     gamma  = .7
-    zeta_0 = .55
+    zeta_0 = .79
     # own price elasticity of demand for rice is .55 (US 2008, Wikipedia)
     # own price elasticity of demand for sugar is .79 (UK 1988 - 2000 Lechene)
-    error = -.7  # percentage error in z_0; z_star * (1 + self.error)
+    error = -.1  # percentage error in z_0; z_star * (1 + self.error)
     e1 = .9      # for original and differential expectation functions 
     e2 = .1
     inertia = .5 # for functional expectation function
-    mF_0 = 320   # ignored if money False
+    mF_0 = 32   # ignored if money False
     expiration = 1 # percentage of stock which expires each timestep
 
     # household variable parameters

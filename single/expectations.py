@@ -16,7 +16,7 @@ def differential(z_t, zeta_t, p_t, p_tp1, S_t, S_tp1, e1, e2, inertia, memory, m
 #    e2 * ((x[0] - z_t) ** 2 + (x[1] - zeta_t) ** 2)
     f = lambda x: (p_tp1 - (x[0] / S_tp1 ** x[1])) ** 2 + e1 * (p_t - (x[0] / S_t ** x[1])) ** 2 + \
     e2 * (((x[0] - z_t)/z_t) ** 2 + ((x[1] - zeta_t)/zeta_t) ** 2)
-    res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, 1)))
+    res = minimize(f, x0 = [z_t, zeta_t], bounds = ((0, None), (0, None)))
     return res.x[0], res.x[1]
     
 # functional ############################################################

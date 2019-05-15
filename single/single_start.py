@@ -12,3 +12,5 @@ firmResults, householdResults, marketResults = sim.Run()
 plotting(sim.L_star, sim.S_star, sim.p_star, firmResults, householdResults)
 plotZandZeta(firmResults)
 
+
+

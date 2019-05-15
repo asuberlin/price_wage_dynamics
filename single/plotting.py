@@ -43,7 +43,7 @@ def plotZandZeta(firmResults):
     ax = plt.gca()
     firmResults.plot(kind = 'line', x = 'step', y = 'z_t', color = 'blue', ax = ax)
     plt.title('z')
-    ax.set_ylim([0, 50])
+    ax.set_ylim([0, 100])
 
     plt.subplot(122)
     ax = plt.gca()
